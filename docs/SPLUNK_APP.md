@@ -163,6 +163,34 @@ Use it to inspect:
 
 This page is for local investigation, not billing-authoritative reporting.
 
+For a local Splunk Enterprise Docker deployment that already receives
+`DefenseClaw` audit data but has an empty `Model Usage And Cost` page, import
+OpenClaw's local session usage into the event shape this dashboard expects:
+
+```bash
+python3 scripts/import-openclaw-usage-to-splunk.py --days 2 --limit 500
+```
+
+The importer reads `~/.openclaw/agents/*/sessions/*.jsonl`, extracts assistant
+response usage and cost counters, and posts flattened HEC events with:
+
+- index: `defenseclaw_local`
+- source: `openclaw-session-import`
+- sourcetype: `otel:metric` and `otel:trace`
+- metric names: `openclaw.tokens`, `openclaw.cost.usd`,
+  `openclaw.run.duration_ms`, `openclaw.queue.wait_ms`,
+  `openclaw.queue.depth`
+- trace span name: `openclaw.model.usage`
+
+This is the simplest local bridge for the bundled Splunk app. It avoids a full
+OTLP Collector setup and does not change OpenClaw runtime behavior. Re-run it
+after new OpenClaw sessions, or schedule it from cron if you want the local
+dashboard to stay populated. It records imported response IDs in
+`~/.defenseclaw/openclaw-usage-splunk-import-state.json` so repeated runs skip
+events already sent to Splunk. Use `--dry-run` to preview counts and sample
+events before posting, `--force` to resend matching responses, and
+`--no-zero-queue` if you do not want zero-valued queue baseline rows.
+
 ### Operate
 
 #### Alerts And Saved Searches
